@@ -47,31 +47,24 @@ resource "aws_security_group" "example_sg" {
 resource "aws_instance" "example_instance" {
   ami             = "ami-0e83be366243f524a"
   instance_type   = "t2.micro"
+  key_name = aws_key_pair.web1.id
   subnet_id       = aws_subnet.example_subnet.id
   security_groups  = [aws_security_group.example_sg.id]
 
   tags = {
     Name = "example-instance"
   }
-
-  # Provisioner to install Apache2 on the EC2 instance
-  provisioner "remote-exec" {
-    inline = [
+  user_data = <<EOF
       "sudo apt-get update",
       "sudo apt-get install -y apache2",
       "sudo systemctl start apache2",
       "sudo systemctl enable apache2"
-    ]
-  }
+      EOF
+}
+output "IPv4" {
+        value = aws_instance.example_instance.public_ip
 }
 
-# Create a null_resource to run local-exec provisioner after the EC2 instance is created
-resource "null_resource" "example_local_exec" {
-  triggers = {
-    instance_id = aws_instance.example_instance.id
-  }
-
-  provisioner "local-exec" {
-    command = "echo 'Public IP: ${aws_instance.example_instance.public_ip}' > instance_ip.txt"
-  }
+resource "aws_key_pair" "web1" {
+  public_key = file("/root/.ssh/id_rsa.pub")
 }
